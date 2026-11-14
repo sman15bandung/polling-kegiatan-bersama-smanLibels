@@ -105,7 +105,7 @@
     // Label harus sama dengan LABEL di Code.gs
     const OPSI = {
         biaya: ['Sebagian pakai uang pribadi', 'Tidak pakai uang pribadi', 'Full semua pakai uang pribadi'],
-        durasi: ['Menginap', 'Pulang Pergi (PP)'],
+        durasi: ['Menginap', 'Pulang Pergi (PP)', 'Mana saja ayo'],
         kendaraan: ['Kendaraan masing-masing', 'Sewa kendaraan'],
         travel: ['Ya, ada', 'Tidak ada']
     };
@@ -156,6 +156,11 @@
     }
 
     // Ambil nama tempat dari jawaban bebas, mis. "Lembang (Villa), kisaran 300rb" -> "Lembang"
+    // Mayoritas menginap vs PP saja (pilihan "Mana saja ayo" dihitung terpisah)
+    function mayoritasDurasi(cnt) {
+        return mayoritas({ [OPSI.durasi[0]]: cnt[OPSI.durasi[0]] || 0, [OPSI.durasi[1]]: cnt[OPSI.durasi[1]] || 0 });
+    }
+
     function namaDestinasi(t) {
         let s = String(t).split(/[,(\n\/;:]|\bkisaran\b|\bharga\b|\brp\.?\b|\bsekitar\b|\d/i)[0];
         s = s.replace(/[\s\-–.]+$/, '').replace(/^ke\s+/i, '').trim();
@@ -240,10 +245,12 @@
         }
         if (r.harga) poin.push(`Kisaran biaya yang diusulkan berada di sekitar ${rupiah(r.harga.min)} – ${rupiah(r.harga.max)} per orang (nilai tengah dari ${r.harga.n} jawaban yang mencantumkan harga).`);
 
-        const b = mayoritas(r.biaya), d = mayoritas(r.durasi), k = mayoritas(r.kendaraan);
+        const b = mayoritas(r.biaya), d = mayoritasDurasi(r.durasi), k = mayoritas(r.kendaraan);
+        const flex = r.durasi[OPSI.durasi[2]] || 0;
         if (b) poin.push(b.seri ? 'Pendapat soal penggunaan uang pribadi masih seimbang.'
             : `Soal biaya, mayoritas (${b.pct}%) memilih "${b.label}".`);
-        if (d) poin.push(d.seri ? 'Pilihan menginap dan pulang-pergi sama kuat.' : `Mayoritas (${d.pct}%) lebih nyaman ${d.label === 'Menginap' ? 'menginap' : 'pulang-pergi (PP)'}.`);
+        if (d || flex) poin.push(`Soal durasi: ${r.durasi[OPSI.durasi[0]]} orang memilih menginap, ${r.durasi[OPSI.durasi[1]]} orang PP, dan ${flex} orang mana saja ayo. ` +
+            (!d ? 'Semua fleksibel, durasi bisa disesuaikan.' : d.seri ? 'Menginap dan PP sama kuat, yang memilih "mana saja" bisa jadi penentu.' : `Di antara yang menentukan pilihan, lebih banyak yang ingin ${d.label === 'Menginap' ? 'menginap' : 'pulang-pergi (PP)'}.`));
         if (k) poin.push(k.seri ? 'Pilihan transportasi sama kuat antara kendaraan pribadi dan sewa.' : `Untuk transportasi, mayoritas (${k.pct}%) memilih ${k.label.toLowerCase()}.`);
         if (r.daftarTravel.length) {
             const nama = [...new Set(r.daftarTravel.map(t => t.nama.trim()))];
@@ -253,7 +260,8 @@
         // Rekomendasi akhir
         const bagian = [];
         if (tujuan) bagian.push(`kegiatan ke ${tujuan}`);
-        if (d) bagian.push(d.seri ? 'durasi perlu dimusyawarahkan' : (d.label === 'Menginap' ? 'dengan menginap' : 'pulang-pergi (PP)'));
+        if (d) bagian.push(d.seri ? 'durasi (menginap/PP) perlu dimusyawarahkan' : (d.label === 'Menginap' ? 'dengan menginap' : 'pulang-pergi (PP)'));
+        else if (flex) bagian.push('durasi menginap atau PP bebas disesuaikan');
         if (k) bagian.push(k.seri ? 'transportasi perlu dimusyawarahkan' : (k.label === 'Sewa kendaraan' ? 'menggunakan kendaraan sewaan bersama' : 'menggunakan kendaraan masing-masing'));
         if (r.harga) bagian.push(`anggaran sekitar ${rupiah(r.harga.min)} – ${rupiah(r.harga.max)} per orang`);
         if (b) bagian.push(b.seri ? 'skema dana perlu dibahas' : ({'Sebagian pakai uang pribadi': 'biaya sebagian ditanggung dengan uang pribadi peserta', 'Full semua pakai uang pribadi': 'biaya ditanggung penuh dengan uang pribadi peserta', 'Tidak pakai uang pribadi': 'tanpa memakai uang pribadi peserta'}[b.label] || ''));
@@ -265,10 +273,10 @@
 
     /* ---------- Tampilan ---------- */
     function render(r) {
-        const b = mayoritas(r.biaya), d = mayoritas(r.durasi);
+        const d = mayoritasDurasi(r.durasi);
         document.getElementById('s-total').textContent = r.total;
         document.getElementById('s-patungan').textContent = Math.round(((r.biaya[OPSI.biaya[0]] || 0) + (r.biaya[OPSI.biaya[2]] || 0)) / r.total * 100) + '%';
-        document.getElementById('s-durasi').textContent = d ? (d.seri ? 'Seimbang' : d.label) : '-';
+        document.getElementById('s-durasi').textContent = d ? (d.seri ? 'Seimbang' : d.label) : ((r.durasi[OPSI.durasi[2]] || 0) ? 'Fleksibel' : '-');
         document.getElementById('s-harga').textContent = r.harga ? rupiah(r.harga.min) + ' – ' + rupiah(r.harga.max) : '-';
 
         document.getElementById('kesimpulan').innerHTML = r.kesimpulan.poin.map(p => `<li>${esc(p)}</li>`).join('');
