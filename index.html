@@ -66,11 +66,12 @@
                 <!-- Nama (opsional) -->
                 <div class="space-y-3">
                     <label class="block font-semibold text-stone-700" for="nama">
-                        Nama Bapak/Ibu <span class="text-stone-400 font-normal text-sm">(opsional)</span>
+                        Nama Bapak/Ibu <span class="text-red-400">*</span>
                     </label>
-                    <input type="text" id="nama" name="nama" maxlength="100"
-                        class="w-full px-4 py-3 rounded-xl border border-warm-200 bg-warm-50/30 focus:bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none placeholder-stone-400"
-                        placeholder="Boleh dikosongkan">
+                    <select id="nama" name="nama" required
+                        class="w-full px-4 py-3 rounded-xl border border-warm-200 bg-warm-50/30 focus:bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none text-stone-700">
+                        <option value="" disabled selected>-- Pilih nama Bapak/Ibu --</option>
+                    </select>
                 </div>
 
                 <!-- Destinasi & Harga -->
@@ -217,6 +218,110 @@
         // ====== GANTI dengan URL Aplikasi Web Apps Script (berakhiran /exec) ======
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz_MSj9M0KF55-yy2HInVxNVdQ5zbyD1d3m0MYrwN68OJ6P_4zA_ylOlhskUoAAkiQU/exec';
 
+        // Daftar nama (urut abjad) untuk dropdown
+        const DAFTAR_NAMA = [
+            "ACHMAD SOBARI, S.Pd",
+            "AHMAD JUANDA",
+            "AHMAD SODIK ARIFIN, S.Pd.i.,M.Pd",
+            "AIDA NUR HAQIQI, S. Pd",
+            "ALFREDY MERVIN HUTASOIT, S.Pd",
+            "ANDRE DEWANTARA, ST",
+            "ANDRI SAPUTRA KOSTAMAN, A.Md",
+            "ANI WINARTI, S.Pd",
+            "APEP HIDAYATULLOH, S.Sos",
+            "ARLINE NUR'SHABRINA",
+            "ASTRI RAFI YULIANTI, S.Pd",
+            "ATET SEPTIADI",
+            "BELLADINA NUR AINI, S.Pd",
+            "CEP IWAN",
+            "CICIH KURNIASIH, S.Pd",
+            "DADANG YULIANTO, S.Pd",
+            "DANI YAJI",
+            "DARA APRILLA, S.Pd",
+            "DEBBY NUR KAMILAH, S.Pd",
+            "DEDEH ROHAETI, S.Pd.,M.Pd",
+            "DEDI SUTISNA",
+            "DENIS SURYANINGSIH, S.Pd",
+            "DESTI RESNAWATI, S.Pd,MM",
+            "DEVI ADITIANINGSIH, S.Pd",
+            "DEVI LESTINE SUWANDI, S.Pd",
+            "DIDI NURADI, S.Pd",
+            "DIKDIK DARMAWAN",
+            "DINNI KHAIRUNNISA, S.Pd",
+            "DWI ENDAH HERDIJANTI, S.Pd",
+            "EGI LASMINI",
+            "EKA PRASETIA TUGAS JAYA, S.I. Kom",
+            "EKA RESPATIONO, S.Pd",
+            "ENCE SAEPUDIN",
+            "ERIN NURFITRIANI, S.Pd",
+            "EULIS RINA, S.Pd",
+            "FATKHURI, S.Pd",
+            "FERA FADLILAH NURZAMAN, S.Pd",
+            "FITRI CHINTIA DEWI, S.Pd",
+            "GILANG PRATAMA, S.Pd",
+            "HAFID LUKMAN HAKIM",
+            "HANA JUHANA, S.Pd",
+            "HARIS MUNANDAR, M.Pd",
+            "HENDRA SUHENDRA",
+            "INDAH LESTARI, S.Pd.,M.Pd",
+            "IRVIA MARIZA, S.Pd",
+            "IWAN KURNIAWAN",
+            "LIA DAHLIA MAYA",
+            "LINA YULISTIAN, S.Pd, M.Pd",
+            "LUDOVICA DEWI INDAH SETIAWATI, S.Pd",
+            "LUKMAN MAULANA",
+            "LUSYANA WIDJAJA, S.Pd, MM",
+            "MAGDANIAR BR HUTABARAT, S.Mat",
+            "MOCH. MAULANA HIDAYAT, S.Pd",
+            "MOHAMMAD SOLEH",
+            "MUBAROK",
+            "MUFLIHANA IMANISA, S.Pd.Gr",
+            "MUHAMAD JAELANI, S.Pd",
+            "MUHAMMAD SURYA HANDIKA",
+            "MUJIBUDIN SHOLEH, S.Pd",
+            "NANI RUSWANTI, S.S",
+            "NELI NURMALINA",
+            "NENENG HESTI HANDAYANI N, S.Pd. M.Pd",
+            "NONENG RODIAH, S.Pd",
+            "NOVITA VIRDIAN, S.Pd",
+            "NURUL SEPTIYANI AYU PURWANTI, S.Pd",
+            "NURYATI YULI WARDANI, S.Pd. Gr",
+            "RANIAH MARDIANT, S.Pd.,M.Pd",
+            "RATIFIKA DEWI IRIANTO, M.Pd",
+            "RATIH DINARYANTI, S.Pd",
+            "RIDHO WIRYAWAN, S.Pd",
+            "RIKA ANDRIANI, S.Pd. M.Pmat",
+            "RITA SARIPUDIN",
+            "RIZKY ZULKARNAIN NOER",
+            "ROSSI INDRIATI, S.Sn",
+            "RUSLAN PANE, S.Sos",
+            "SAEPUDIN",
+            "SAFIRA HUSNUSSIYAROH SOLEHUDIN, S.Pd",
+            "SARTIKA OKTAFIANI, S.Pd",
+            "SITI HENDRIYATI, S.Pd",
+            "SITI MUNIRAH, S.Pd, M.Pd",
+            "SLAMET KHOERY",
+            "SRI WAHYUNINGSIH, S.Pd",
+            "SYLGA NUR ANISSA, S.Pd",
+            "TEDI SETIADI",
+            "TOPAN KUSMAYADI",
+            "Dr. TOTO SUHARYA, S.Pd. M.Pd",
+            "TRI EKA LAKSANA, S.Pd",
+            "TRISTO WIJANARKO INDRAPRASADA, S.Pd",
+            "TUTI ARTIYANTI, S.Pd",
+            "WAWAN WIDYAWAN, S.Pd",
+            "WIDA KOMALA DEWI, S.Pd",
+            "WIDIA TRIASTUTI, S.T",
+            "Dra. YANTI SRI BUDIARTI, M.Pd",
+            "YASSA DWI ADTIALI, S. Tr .Kom",
+            "YENNI YUNINGSIH, S.Pd",
+            "ZHANI SRI RAHAYUNIKA, S.Pd"
+        ];
+        (function isiDropdownNama() {
+            const sel = document.getElementById('nama');
+            DAFTAR_NAMA.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+        })();
+
         // Tampilkan/sembunyikan isian travel
         function toggleTravelInput(show) {
             const container = document.getElementById('nama-travel-container');
@@ -239,6 +344,8 @@
             const btn = document.getElementById('btn-kirim');
             const errBox = document.getElementById('error-box');
             const data = Object.fromEntries(new FormData(this));
+            data.nama = (data.nama || '').trim();
+            if (!data.nama) { errBox.textContent = 'Silakan pilih nama terlebih dahulu.'; errBox.classList.remove('hidden'); document.getElementById('nama').focus(); return; }
 
             errBox.classList.add('hidden');
             btn.disabled = true;
