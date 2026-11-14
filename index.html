@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polling Rencana Kegiatan Bersama</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        warm: {
+                            50: '#fdf8f5',
+                            100: '#f9eee7',
+                            200: '#f2dac9',
+                            300: '#e8c0a6',
+                            400: '#db9d7a',
+                            500: '#d07f56',
+                            600: '#c26442',
+                            700: '#a24d35',
+                            800: '#844030',
+                            900: '#6a362a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom radio button styles for a softer look */
+        input[type="radio"] {
+            accent-color: #d07f56;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-warm-50 text-stone-800 font-sans min-h-screen py-10 px-4 flex items-center justify-center selection:bg-warm-200 selection:text-warm-900">
+
+    <div class="w-full max-w-2xl bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden border border-warm-100 fade-in">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-warm-100 to-warm-50 px-8 py-10 border-b border-warm-100">
+            <h1 class="text-2xl md:text-3xl font-bold text-warm-800 mb-4 leading-tight">
+                Polling Kegiatan Bersama 🌴
+            </h1>
+            <p class="text-stone-600 leading-relaxed text-sm md:text-base">
+                Bapak Ibu.. Kalau seandainya kita adakan kegiatan bersama keluar, Apakah Bapak Ibu ada rekomendasi kemana? Yuk, bantu isi kuesioner singkat ini agar rencana kita semakin matang dan nyaman untuk semua.
+            </p>
+        </div>
+
+        <!-- Form Area -->
+        <div id="form-container" class="p-8">
+            <form id="polling-form" class="space-y-8">
+                
+                <!-- Nama (opsional) -->
+                <div class="space-y-3">
+                    <label class="block font-semibold text-stone-700" for="nama">
+                        Nama Bapak/Ibu <span class="text-stone-400 font-normal text-sm">(opsional)</span>
+                    </label>
+                    <input type="text" id="nama" name="nama" maxlength="100"
+                        class="w-full px-4 py-3 rounded-xl border border-warm-200 bg-warm-50/30 focus:bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none placeholder-stone-400"
+                        placeholder="Boleh dikosongkan">
+                </div>
+
+                <!-- Destinasi & Harga -->
+                <div class="space-y-3">
+                    <label class="block font-semibold text-stone-700" for="destinasi">
+                        1. Nama perjalanan / tempat tujuan dan range harga kisaran berapa per orang? <span class="text-red-400">*</span>
+                    </label>
+                    <p class="text-xs text-stone-500">Contoh: Lembang (Villa), kisaran 300rb - 500rb / orang</p>
+                    <textarea id="destinasi" name="destinasi" rows="3" required
+                        class="w-full px-4 py-3 rounded-xl border border-warm-200 bg-warm-50/30 focus:bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 resize-none outline-none placeholder-stone-400"
+                        placeholder="Tuliskan rekomendasi tempat dan estimasi harganya di sini..."></textarea>
+                </div>
+
+                <!-- Dana Pribadi -->
+                <div class="space-y-3">
+                    <label class="block font-semibold text-stone-700">
+                        2. Mengenai biaya, apakah bersedia jika sebagian menggunakan uang pribadi, tidak, atau full semua pakai uang pribadi? <span class="text-red-400">*</span>
+                    </label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition border border-transparent hover:border-warm-100">
+                            <input type="radio" name="biaya" value="sebagian" required class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-600">Ya, bersedia sebagian pakai uang pribadi</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition border border-transparent hover:border-warm-100">
+                            <input type="radio" name="biaya" value="tidak" class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-600">Tidak bersedia pakai uang pribadi</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition border border-transparent hover:border-warm-100">
+                            <input type="radio" name="biaya" value="full" class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-600">Full semua pakai uang pribadi</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Durasi (Menginap / PP) -->
+                <div class="space-y-3">
+                    <label class="block font-semibold text-stone-700">
+                        3. Lebih nyaman menginap atau Pulang Pergi (PP)? <span class="text-red-400">*</span>
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <label class="flex-1 flex items-center space-x-3 cursor-pointer p-4 rounded-xl border border-warm-200 bg-white hover:bg-warm-50 transition shadow-sm">
+                            <input type="radio" name="durasi" value="menginap" required class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-700 font-medium">Menginap</span>
+                        </label>
+                        <label class="flex-1 flex items-center space-x-3 cursor-pointer p-4 rounded-xl border border-warm-200 bg-white hover:bg-warm-50 transition shadow-sm">
+                            <input type="radio" name="durasi" value="pp" class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-700 font-medium">Pulang Pergi (PP)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Kendaraan -->
+                <div class="space-y-3">
+                    <label class="block font-semibold text-stone-700">
+                        4. Untuk transportasi, lebih baik pakai kendaraan masing-masing atau sewa kendaraan? <span class="text-red-400">*</span>
+                    </label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition border border-transparent hover:border-warm-100">
+                            <input type="radio" name="kendaraan" value="pribadi" required class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-600">Kendaraan masing-masing (Konvoi/Carpooling)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition border border-transparent hover:border-warm-100">
+                            <input type="radio" name="kendaraan" value="sewa" class="w-5 h-5 cursor-pointer">
+                            <span class="text-stone-600">Sewa kendaraan (Bus / Elf / Hiace bersama)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Rekomendasi Travel -->
+                <div class="space-y-3 bg-warm-50/50 p-5 rounded-2xl border border-warm-100">
+                    <label class="block font-semibold text-stone-700">
+                        5. Apakah punya rekomendasi agen travel yang murah dan bagus? <span class="text-red-400">*</span>
+                    </label>
+                    <div class="flex gap-4 mt-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="ada_travel" value="ya" required class="w-4 h-4 cursor-pointer" onchange="toggleTravelInput(true)">
+                            <span class="text-stone-600">Ya, ada</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="ada_travel" value="tidak" class="w-4 h-4 cursor-pointer" onchange="toggleTravelInput(false)">
+                            <span class="text-stone-600">Tidak ada</span>
+                        </label>
+                    </div>
+
+                    <!-- Hidden input for Travel Name, Destination, and Price -->
+                    <div id="nama-travel-container" class="mt-4 hidden fade-in space-y-4 border-t border-warm-200/60 pt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1" for="nama_travel">
+                                Boleh sebutkan nama travel atau agennya?
+                            </label>
+                            <input type="text" id="nama_travel" name="nama_travel" 
+                                class="w-full px-4 py-2.5 rounded-lg border border-warm-200 bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none placeholder-stone-300"
+                                placeholder="Contoh: Travel Bintang Jaya...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1" for="tujuan_travel">
+                                Kemana tempat tujuan/perjalanannya?
+                            </label>
+                            <input type="text" id="tujuan_travel" name="tujuan_travel" 
+                                class="w-full px-4 py-2.5 rounded-lg border border-warm-200 bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none placeholder-stone-300"
+                                placeholder="Contoh: Pangandaran / Jogja...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-stone-600 mb-1" for="harga_travel">
+                                Kisaran harganya berapa per orang?
+                            </label>
+                            <input type="text" id="harga_travel" name="harga_travel" 
+                                class="w-full px-4 py-2.5 rounded-lg border border-warm-200 bg-white focus:ring-2 focus:ring-warm-300 focus:border-warm-400 transition duration-200 outline-none placeholder-stone-300"
+                                placeholder="Contoh: Rp 350.000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4">
+                    <div id="error-box" class="hidden mb-4 p-3 rounded-xl bg-red-50 text-red-600 text-sm"></div>
+                    <button type="submit" id="btn-kirim" 
+                        class="w-full bg-warm-500 hover:bg-warm-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg shadow-warm-500/30 transition-all duration-300 transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-warm-200">
+                        Kirim Rekomendasi
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Success Message (Hidden by default) -->
+        <div id="success-message" class="hidden p-10 text-center fade-in">
+            <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-warm-800 mb-3">Terima Kasih!</h2>
+            <p class="text-stone-600 mb-8">
+                Rekomendasi dan masukan Bapak/Ibu sudah kami terima. Semoga rencana kegiatan kita berjalan lancar.
+            </p>
+            <button onclick="resetForm()" class="text-warm-600 font-medium hover:text-warm-800 underline transition">
+                Isi form lagi
+            </button>
+            <div class="mt-6">
+                <a href="<?= appUrl ?>?page=hasil" target="_top" class="inline-block bg-warm-100 hover:bg-warm-200 text-warm-800 font-medium py-3 px-6 rounded-xl transition">
+                    📊 Lihat hasil polling sementara
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tampilkan/sembunyikan isian travel
+        function toggleTravelInput(show) {
+            const container = document.getElementById('nama-travel-container');
+            const inputNama = document.getElementById('nama_travel');
+            const inputTujuan = document.getElementById('tujuan_travel');
+            const inputHarga = document.getElementById('harga_travel');
+            inputNama.required = show; // nama travel wajib jika memilih "Ya, ada"
+            if (show) {
+                container.classList.remove('hidden');
+                setTimeout(() => inputNama.focus(), 100);
+            } else {
+                container.classList.add('hidden');
+                inputNama.value = ''; inputTujuan.value = ''; inputHarga.value = '';
+            }
+        }
+
+        // Kirim data ke Google Spreadsheet
+        document.getElementById('polling-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-kirim');
+            const errBox = document.getElementById('error-box');
+            const data = Object.fromEntries(new FormData(this));
+
+            errBox.classList.add('hidden');
+            btn.disabled = true;
+            btn.textContent = 'Mengirim...';
+            btn.classList.add('opacity-70');
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    document.getElementById('form-container').classList.add('hidden');
+                    document.getElementById('success-message').classList.remove('hidden');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    resetTombol();
+                })
+                .withFailureHandler(function (err) {
+                    errBox.textContent = 'Gagal mengirim: ' + (err && err.message ? err.message : err) + '. Silakan coba lagi.';
+                    errBox.classList.remove('hidden');
+                    resetTombol();
+                })
+                .simpanRespon(data);
+
+            function resetTombol() {
+                btn.disabled = false;
+                btn.textContent = 'Kirim Rekomendasi';
+                btn.classList.remove('opacity-70');
+            }
+        });
+
+        function resetForm() {
+            document.getElementById('polling-form').reset();
+            toggleTravelInput(false);
+            document.getElementById('success-message').classList.add('hidden');
+            document.getElementById('form-container').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
