@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Polling Kegiatan Bersama</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: {
+                fontFamily: { sans: ['Inter', 'sans-serif'] },
+                colors: { warm: { 50:'#fdf8f5',100:'#f9eee7',200:'#f2dac9',300:'#e8c0a6',400:'#db9d7a',500:'#d07f56',600:'#c26442',700:'#a24d35',800:'#844030',900:'#6a362a' } }
+            } }
+        }
+    </script>
+    <style>
+        .card { background:#fff; border:1px solid #f9eee7; border-radius:1.5rem; box-shadow:0 8px 30px rgba(0,0,0,0.04); }
+        .chart-box { position:relative; height:240px; }
+    </style>
+</head>
+<body class="bg-warm-50 text-stone-800 font-sans min-h-screen">
+<div class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+    <!-- Header -->
+    <div class="card overflow-hidden">
+        <div class="bg-gradient-to-r from-warm-100 to-warm-50 px-6 md:px-8 py-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-warm-800">Hasil Polling Kegiatan Bersama 🌴</h1>
+            <p id="info-update" class="text-stone-500 text-sm mt-2">Memuat data...</p>
+            <div class="flex flex-wrap gap-2 mt-5">
+                <button onclick="muat()" class="bg-white border border-warm-200 hover:bg-warm-100 text-warm-800 font-medium py-2.5 px-4 rounded-xl transition">🔄 Muat ulang</button>
+                <button onclick="unduhExcel()" id="btn-excel" class="bg-warm-500 hover:bg-warm-600 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-warm-500/30 transition">⬇️ Unduh Excel</button>
+                <a href="<?= appUrl ?>" target="_top" class="bg-white border border-warm-200 hover:bg-warm-100 text-warm-800 font-medium py-2.5 px-4 rounded-xl transition">📝 Isi form polling</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="card p-10 text-center text-stone-500">⏳ Mengambil data dari spreadsheet...</div>
+    <div id="kosong" class="card p-10 text-center text-stone-500 hidden">Belum ada responden yang mengisi polling.</div>
+    <div id="galat" class="card p-6 text-red-600 bg-red-50 hidden"></div>
+
+    <div id="konten" class="space-y-6 hidden">
+
+        <!-- Angka ringkas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="card p-5"><p class="text-xs text-stone-500">Total responden</p><p id="s-total" class="text-3xl font-bold text-warm-700 mt-1">0</p></div>
+            <div class="card p-5"><p class="text-xs text-stone-500">Bersedia pakai uang pribadi</p><p id="s-patungan" class="text-3xl font-bold text-warm-700 mt-1">0%</p></div>
+            <div class="card p-5"><p class="text-xs text-stone-500">Durasi favorit</p><p id="s-durasi" class="text-lg font-bold text-warm-700 mt-2">-</p></div>
+            <div class="card p-5"><p class="text-xs text-stone-500">Kisaran biaya (median)</p><p id="s-harga" class="text-lg font-bold text-warm-700 mt-2">-</p></div>
+        </div>
+
+        <!-- Kesimpulan -->
+        <div class="card p-6 md:p-8 border-l-8 !border-l-warm-500">
+            <h2 class="text-xl font-bold text-warm-800 mb-4">📌 Kesimpulan Akhir</h2>
+            <ul id="kesimpulan" class="space-y-2 text-stone-700 leading-relaxed list-disc pl-5"></ul>
+            <div class="mt-5 p-4 rounded-2xl bg-warm-100 text-warm-900">
+                <p class="text-xs font-semibold uppercase tracking-wide text-warm-700 mb-1">Rekomendasi</p>
+                <p id="rekomendasi" class="font-semibold"></p>
+            </div>
+        </div>
+
+        <!-- Diagram -->
+        <div class="card p-6">
+            <h3 class="font-semibold text-stone-700 mb-3">Destinasi yang paling banyak diusulkan</h3>
+            <div class="relative" id="wrap-destinasi" style="height:260px"><canvas id="c-destinasi"></canvas></div>
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="card p-6"><h3 class="font-semibold text-stone-700 mb-3">Pakai uang pribadi?</h3><div class="chart-box"><canvas id="c-biaya"></canvas></div></div>
+            <div class="card p-6"><h3 class="font-semibold text-stone-700 mb-3">Menginap atau PP?</h3><div class="chart-box"><canvas id="c-durasi"></canvas></div></div>
+            <div class="card p-6"><h3 class="font-semibold text-stone-700 mb-3">Transportasi</h3><div class="chart-box"><canvas id="c-kendaraan"></canvas></div></div>
+            <div class="card p-6"><h3 class="font-semibold text-stone-700 mb-3">Punya rekomendasi agen travel?</h3><div class="chart-box"><canvas id="c-travel"></canvas></div></div>
+        </div>
+
+        <!-- Rekomendasi travel -->
+        <div class="card p-6">
+            <h3 class="font-semibold text-stone-700 mb-3">🚌 Daftar agen travel yang direkomendasikan</h3>
+            <div class="overflow-x-auto"><table class="w-full text-sm">
+                <thead><tr class="text-left text-stone-500 border-b border-warm-100">
+                    <th class="py-2 pr-3">Nama Travel</th><th class="py-2 pr-3">Tujuan</th><th class="py-2 pr-3">Harga / orang</th><th class="py-2">Diusulkan oleh</th>
+                </tr></thead>
+                <tbody id="t-travel"></tbody>
+            </table></div>
+        </div>
+
+        <!-- Data mentah -->
+        <div class="card p-6">
+            <h3 class="font-semibold text-stone-700 mb-3">📋 Semua jawaban responden</h3>
+            <div class="overflow-x-auto max-h-[480px]"><table class="w-full text-sm">
+                <thead class="sticky top-0 bg-white"><tr class="text-left text-stone-500 border-b border-warm-100">
+                    <th class="py-2 pr-3">No</th><th class="py-2 pr-3">Waktu</th><th class="py-2 pr-3">Nama</th><th class="py-2 pr-3 min-w-[220px]">Destinasi & Harga</th>
+                    <th class="py-2 pr-3">Uang Pribadi</th><th class="py-2 pr-3">Durasi</th><th class="py-2 pr-3">Transportasi</th><th class="py-2">Travel</th>
+                </tr></thead>
+                <tbody id="t-data"></tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Label harus sama dengan LABEL di Code.gs
+    const OPSI = {
+        biaya: ['Sebagian pakai uang pribadi', 'Tidak pakai uang pribadi', 'Full semua pakai uang pribadi'],
+        durasi: ['Menginap', 'Pulang Pergi (PP)'],
+        kendaraan: ['Kendaraan masing-masing', 'Sewa kendaraan'],
+        travel: ['Ya, ada', 'Tidak ada']
+    };
+    const C = { ts:0, nama:1, dest:2, biaya:3, durasi:4, kend:5, adaTravel:6, namaTravel:7, tujuanTravel:8, hargaTravel:9 };
+    const WARNA = ['#d07f56', '#e8c0a6', '#a24d35', '#f2dac9', '#844030', '#db9d7a'];
+
+    let ROWS = [], R = null, XLSX_URL = '';
+    const charts = {};
+
+    function muat() {
+        tampil('loading');
+        google.script.run
+            .withSuccessHandler(function (res) {
+                ROWS = res.rows || [];
+                XLSX_URL = res.xlsxUrl || '';
+                document.getElementById('info-update').textContent =
+                    'Diperbarui: ' + new Date().toLocaleString('id-ID') + ' • ' + ROWS.length + ' responden';
+                if (!ROWS.length) return tampil('kosong');
+                R = olahData(ROWS);
+                render(R);
+                tampil('konten');
+            })
+            .withFailureHandler(function (err) {
+                document.getElementById('galat').textContent = 'Gagal memuat data: ' + (err.message || err);
+                tampil('galat');
+            })
+            .getHasil();
+    }
+
+    function tampil(id) {
+        ['loading', 'kosong', 'galat', 'konten'].forEach(x =>
+            document.getElementById(x).classList.toggle('hidden', x !== id));
+    }
+
+    /* ---------- Pengolahan data ---------- */
+    function hitung(idx, opsi) {
+        const c = {};
+        opsi.forEach(o => c[o] = 0);
+        ROWS.forEach(r => { if (r[idx]) c[r[idx]] = (c[r[idx]] || 0) + 1; });
+        return c;
+    }
+
+    function mayoritas(counts) {
+        const e = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        const total = e.reduce((s, x) => s + x[1], 0);
+        if (!total) return null;
+        return { label: e[0][0], n: e[0][1], pct: Math.round(e[0][1] / total * 100), seri: e.length > 1 && e[0][1] === e[1][1], total };
+    }
+
+    // Ambil nama tempat dari jawaban bebas, mis. "Lembang (Villa), kisaran 300rb" -> "Lembang"
+    function namaDestinasi(t) {
+        let s = String(t).split(/[,(\n\/;:]|\bkisaran\b|\bharga\b|\brp\.?\b|\bsekitar\b|\d/i)[0];
+        s = s.replace(/[\s\-–.]+$/, '').replace(/^ke\s+/i, '').trim();
+        if (!s) s = String(t).trim().slice(0, 30);
+        return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Baca angka harga: "300rb - 500rb", "Rp 350.000", "1,5jt", "300-500 ribu"
+    function parseHarga(t) {
+        const re = /(\d{1,3}(?:[.,]\d{3})+|\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)?/gi;
+        const found = []; let m;
+        while ((m = re.exec(String(t)))) {
+            const raw = m[1];
+            const n = /^\d{1,3}([.,]\d{3})+$/.test(raw) ? parseFloat(raw.replace(/[.,]/g, '')) : parseFloat(raw.replace(',', '.'));
+            found.push({ n, unit: (m[2] || '').toLowerCase() });
+        }
+        const lastUnit = (found.slice().reverse().find(f => f.unit) || {}).unit || '';
+        const kali = u => (u === 'jt' || u === 'juta') ? 1e6 : (u === 'rb' || u === 'ribu' || u === 'k') ? 1e3 : 1;
+        const vals = found.map(f => {
+            const u = f.unit || (f.n < 1000 ? lastUnit : '');
+            let v = f.n * kali(u);
+            if (!f.unit && !lastUnit && v < 1000) v *= 1000;
+            return v;
+        }).filter(v => v >= 10000 && v <= 20e6);
+        return vals.length ? [Math.min(...vals), Math.max(...vals)] : null;
+    }
+
+    function median(a) {
+        if (!a.length) return 0;
+        const s = a.slice().sort((x, y) => x - y), h = Math.floor(s.length / 2);
+        return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+    }
+
+    const rupiah = v => 'Rp ' + (Math.round(v / 1000) * 1000).toLocaleString('id-ID');
+
+    function olahData(rows) {
+        const res = {
+            total: rows.length,
+            biaya: hitung(C.biaya, OPSI.biaya),
+            durasi: hitung(C.durasi, OPSI.durasi),
+            kendaraan: hitung(C.kend, OPSI.kendaraan),
+            travel: hitung(C.adaTravel, OPSI.travel)
+        };
+        // Destinasi
+        const dest = {};
+        rows.forEach(r => {
+            if (!r[C.dest]) return;
+            const nm = namaDestinasi(r[C.dest]);
+            dest[nm] = (dest[nm] || 0) + 1;
+        });
+        res.destinasi = Object.entries(dest).sort((a, b) => b[1] - a[1]);
+
+        // Harga
+        const mins = [], maxs = [];
+        rows.forEach(r => { const h = parseHarga(r[C.dest]); if (h) { mins.push(h[0]); maxs.push(h[1]); } });
+        res.harga = mins.length ? { min: median(mins), max: median(maxs), n: mins.length } : null;
+
+        // Travel
+        res.daftarTravel = rows.filter(r => r[C.namaTravel]).map(r => ({
+            nama: r[C.namaTravel], tujuan: r[C.tujuanTravel] || '-', harga: r[C.hargaTravel] || '-', oleh: r[C.nama] || 'Anonim'
+        }));
+
+        res.kesimpulan = buatKesimpulan(res);
+        return res;
+    }
+
+    function buatKesimpulan(r) {
+        const poin = [];
+        const top = r.destinasi;
+        let tujuan = '';
+        if (top.length) {
+            const seriDest = top.length > 1 && top[0][1] === top[1][1];
+            if (seriDest) {
+                const sama = top.filter(d => d[1] === top[0][1]).map(d => d[0]);
+                tujuan = sama.join(' atau ');
+                poin.push(`Usulan destinasi masih seimbang antara ${sama.join(', ')} (masing-masing ${top[0][1]} suara).`);
+            } else {
+                tujuan = top[0][0];
+                const lain = top.slice(1, 3).map(d => `${d[0]} (${d[1]})`).join(' dan ');
+                poin.push(`Destinasi paling banyak diusulkan adalah ${top[0][0]} (${top[0][1]} dari ${r.total} responden)` + (lain ? `, disusul ${lain}.` : '.'));
+            }
+        }
+        if (r.harga) poin.push(`Kisaran biaya yang diusulkan berada di sekitar ${rupiah(r.harga.min)} – ${rupiah(r.harga.max)} per orang (nilai tengah dari ${r.harga.n} jawaban yang mencantumkan harga).`);
+
+        const b = mayoritas(r.biaya), d = mayoritas(r.durasi), k = mayoritas(r.kendaraan);
+        if (b) poin.push(b.seri ? 'Pendapat soal penggunaan uang pribadi masih seimbang.'
+            : `Soal biaya, mayoritas (${b.pct}%) memilih "${b.label}".`);
+        if (d) poin.push(d.seri ? 'Pilihan menginap dan pulang-pergi sama kuat.' : `Mayoritas (${d.pct}%) lebih nyaman ${d.label === 'Menginap' ? 'menginap' : 'pulang-pergi (PP)'}.`);
+        if (k) poin.push(k.seri ? 'Pilihan transportasi sama kuat antara kendaraan pribadi dan sewa.' : `Untuk transportasi, mayoritas (${k.pct}%) memilih ${k.label.toLowerCase()}.`);
+        if (r.daftarTravel.length) {
+            const nama = [...new Set(r.daftarTravel.map(t => t.nama.trim()))];
+            poin.push(`Ada ${nama.length} agen travel yang direkomendasikan: ${nama.slice(0, 5).join(', ')}${nama.length > 5 ? ', dll' : ''}.`);
+        }
+
+        // Rekomendasi akhir
+        const bagian = [];
+        if (tujuan) bagian.push(`kegiatan ke ${tujuan}`);
+        if (d) bagian.push(d.seri ? 'durasi perlu dimusyawarahkan' : (d.label === 'Menginap' ? 'dengan menginap' : 'pulang-pergi (PP)'));
+        if (k) bagian.push(k.seri ? 'transportasi perlu dimusyawarahkan' : (k.label === 'Sewa kendaraan' ? 'menggunakan kendaraan sewaan bersama' : 'menggunakan kendaraan masing-masing'));
+        if (r.harga) bagian.push(`anggaran sekitar ${rupiah(r.harga.min)} – ${rupiah(r.harga.max)} per orang`);
+        if (b) bagian.push(b.seri ? 'skema dana perlu dibahas' : ({'Sebagian pakai uang pribadi': 'biaya sebagian ditanggung dengan uang pribadi peserta', 'Full semua pakai uang pribadi': 'biaya ditanggung penuh dengan uang pribadi peserta', 'Tidak pakai uang pribadi': 'tanpa memakai uang pribadi peserta'}[b.label] || ''));
+        let rek = bagian.length ? 'Disarankan ' + bagian.join(', ') + '.' : '-';
+        if (r.total < 5) rek += ' (Catatan: responden masih sedikit, hasil bisa berubah.)';
+
+        return { poin, rekomendasi: rek };
+    }
+
+    /* ---------- Tampilan ---------- */
+    function render(r) {
+        const b = mayoritas(r.biaya), d = mayoritas(r.durasi);
+        document.getElementById('s-total').textContent = r.total;
+        document.getElementById('s-patungan').textContent = Math.round(((r.biaya[OPSI.biaya[0]] || 0) + (r.biaya[OPSI.biaya[2]] || 0)) / r.total * 100) + '%';
+        document.getElementById('s-durasi').textContent = d ? (d.seri ? 'Seimbang' : d.label) : '-';
+        document.getElementById('s-harga').textContent = r.harga ? rupiah(r.harga.min) + ' – ' + rupiah(r.harga.max) : '-';
+
+        document.getElementById('kesimpulan').innerHTML = r.kesimpulan.poin.map(p => `<li>${esc(p)}</li>`).join('');
+        document.getElementById('rekomendasi').textContent = r.kesimpulan.rekomendasi;
+
+        const topDest = r.destinasi.slice(0, 8);
+        document.getElementById('wrap-destinasi').style.height = Math.max(160, topDest.length * 38 + 40) + 'px';
+        grafik('c-destinasi', 'bar', topDest.map(x => x[0]), topDest.map(x => x[1]), true);
+        grafik('c-biaya', 'doughnut', OPSI.biaya, OPSI.biaya.map(o => r.biaya[o]));
+        grafik('c-durasi', 'doughnut', OPSI.durasi, OPSI.durasi.map(o => r.durasi[o]));
+        grafik('c-kendaraan', 'doughnut', OPSI.kendaraan, OPSI.kendaraan.map(o => r.kendaraan[o]));
+        grafik('c-travel', 'doughnut', OPSI.travel, OPSI.travel.map(o => r.travel[o]));
+
+        document.getElementById('t-travel').innerHTML = r.daftarTravel.length
+            ? r.daftarTravel.map(t => `<tr class="border-b border-warm-50"><td class="py-2 pr-3 font-medium">${esc(t.nama)}</td><td class="py-2 pr-3">${esc(t.tujuan)}</td><td class="py-2 pr-3">${esc(t.harga)}</td><td class="py-2">${esc(t.oleh)}</td></tr>`).join('')
+            : '<tr><td colspan="4" class="py-3 text-stone-400">Belum ada rekomendasi travel.</td></tr>';
+
+        document.getElementById('t-data').innerHTML = ROWS.map((x, i) => `<tr class="border-b border-warm-50 align-top">
+            <td class="py-2 pr-3">${i + 1}</td><td class="py-2 pr-3 whitespace-nowrap">${esc(x[C.ts])}</td><td class="py-2 pr-3">${esc(x[C.nama] || '-')}</td>
+            <td class="py-2 pr-3">${esc(x[C.dest])}</td><td class="py-2 pr-3">${esc(x[C.biaya])}</td><td class="py-2 pr-3">${esc(x[C.durasi])}</td>
+            <td class="py-2 pr-3">${esc(x[C.kend])}</td><td class="py-2">${esc(x[C.namaTravel] || '-')}</td></tr>`).join('');
+    }
+
+    function grafik(id, type, labels, data, horizontal) {
+        if (charts[id]) charts[id].destroy();
+        const total = data.reduce((s, v) => s + v, 0);
+        charts[id] = new Chart(document.getElementById(id), {
+            type,
+            data: { labels, datasets: [{ data, backgroundColor: type === 'bar' ? '#d07f56' : WARNA, borderColor: '#fff', borderWidth: 2, borderRadius: type === 'bar' ? 6 : 0 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                indexAxis: horizontal ? 'y' : 'x',
+                cutout: type === 'doughnut' ? '58%' : undefined,
+                plugins: {
+                    legend: { display: type !== 'bar', position: 'bottom', labels: { boxWidth: 12, font: { family: 'Inter' } } },
+                    tooltip: { callbacks: { label: c => ` ${c.raw} orang (${total ? Math.round(c.raw / total * 100) : 0}%)` } }
+                },
+                scales: type === 'bar' ? { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f9eee7' } }, y: { grid: { display: false } } } : {}
+            }
+        });
+    }
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    /* ---------- Unduh Excel ---------- */
+    function unduhExcel() {
+        if (!R || !ROWS.length) return alertKecil('Belum ada data untuk diunduh.');
+        try {
+            const wb = XLSX.utils.book_new();
+            const pct = (n, t) => t ? Math.round(n / t * 100) + '%' : '0%';
+
+            // 1. Kesimpulan
+            const kes = [['KESIMPULAN HASIL POLLING KEGIATAN BERSAMA'], ['Dicetak: ' + new Date().toLocaleString('id-ID')], ['Total responden: ' + R.total], []];
+            R.kesimpulan.poin.forEach((p, i) => kes.push([(i + 1) + '. ' + p]));
+            kes.push([], ['REKOMENDASI:'], [R.kesimpulan.rekomendasi]);
+            const ws0 = XLSX.utils.aoa_to_sheet(kes); ws0['!cols'] = [{ wch: 120 }];
+            XLSX.utils.book_append_sheet(wb, ws0, 'Kesimpulan');
+
+            // 2. Rekap
+            const rek = [['REKAP JAWABAN'], []];
+            [['Pakai uang pribadi?', R.biaya, OPSI.biaya], ['Menginap / PP', R.durasi, OPSI.durasi],
+             ['Transportasi', R.kendaraan, OPSI.kendaraan], ['Punya rekomendasi travel?', R.travel, OPSI.travel]]
+                .forEach(([judul, cnt, opsi]) => {
+                    const t = opsi.reduce((s, o) => s + cnt[o], 0);
+                    rek.push([judul, 'Jumlah', 'Persen']);
+                    opsi.forEach(o => rek.push([o, cnt[o], pct(cnt[o], t)]));
+                    rek.push([]);
+                });
+            rek.push(['Destinasi diusulkan', 'Jumlah', 'Persen']);
+            R.destinasi.forEach(([n, c]) => rek.push([n, c, pct(c, R.total)]));
+            const ws1 = XLSX.utils.aoa_to_sheet(rek); ws1['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 10 }];
+            XLSX.utils.book_append_sheet(wb, ws1, 'Rekap');
+
+            // 3. Agen travel
+            const tr = [['Nama Travel', 'Tujuan', 'Harga / orang', 'Diusulkan oleh']].concat(R.daftarTravel.map(t => [t.nama, t.tujuan, t.harga, t.oleh]));
+            const ws2 = XLSX.utils.aoa_to_sheet(tr); ws2['!cols'] = [{ wch: 28 }, { wch: 24 }, { wch: 18 }, { wch: 22 }];
+            XLSX.utils.book_append_sheet(wb, ws2, 'Agen Travel');
+
+            // 4. Data responden
+            const head = ['No', 'Waktu', 'Nama', 'Destinasi & Harga', 'Pakai Uang Pribadi', 'Durasi', 'Transportasi', 'Punya Rekomendasi Travel', 'Nama Travel', 'Tujuan Travel', 'Harga Travel'];
+            const ws3 = XLSX.utils.aoa_to_sheet([head].concat(ROWS.map((r, i) => [i + 1].concat(r))));
+            ws3['!cols'] = [6, 17, 20, 50, 22, 18, 24, 22, 24, 22, 16].map(w => ({ wch: w }));
+            XLSX.utils.book_append_sheet(wb, ws3, 'Data Responden');
+
+            const tgl = new Date().toISOString().slice(0, 10);
+            XLSX.writeFile(wb, 'Hasil_Polling_Kegiatan_Bersama_' + tgl + '.xlsx');
+        } catch (e) {
+            // Cadangan: jika unduhan diblokir di dalam iframe, buka ekspor dari Google Sheets
+            if (XLSX_URL) window.open(XLSX_URL, '_blank');
+            else alertKecil('Gagal membuat file Excel: ' + e.message);
+        }
+    }
+
+    function alertKecil(msg) {
+        const b = document.getElementById('btn-excel'), asli = b.textContent;
+        b.textContent = msg; setTimeout(() => b.textContent = asli, 3000);
+    }
+
+    muat();
+</script>
+</body>
+</html>
