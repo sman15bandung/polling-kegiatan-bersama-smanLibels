@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polling Rencana Kegiatan Bersama</title>
@@ -211,7 +210,7 @@
                 Isi form lagi
             </button>
             <div class="mt-6">
-                <a href="<?= appUrl ?>?page=hasil" target="_top" class="inline-block bg-warm-100 hover:bg-warm-200 text-warm-800 font-medium py-3 px-6 rounded-xl transition">
+                <a href="hasil.html" class="inline-block bg-warm-100 hover:bg-warm-200 text-warm-800 font-medium py-3 px-6 rounded-xl transition">
                     📊 Lihat hasil polling sementara
                 </a>
             </div>
@@ -220,6 +219,9 @@
     </div>
 
     <script>
+        // ====== GANTI dengan URL Aplikasi Web Apps Script (berakhiran /exec) ======
+        const SCRIPT_URL = 'TEMPEL_URL_WEB_APP_DI_SINI';
+
         // Tampilkan/sembunyikan isian travel
         function toggleTravelInput(show) {
             const container = document.getElementById('nama-travel-container');
@@ -248,19 +250,20 @@
             btn.textContent = 'Mengirim...';
             btn.classList.add('opacity-70');
 
-            google.script.run
-                .withSuccessHandler(function () {
+            // text/plain agar tidak terkena blokir CORS dari Apps Script
+            fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) })
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(res.error || 'Server menolak data');
                     document.getElementById('form-container').classList.add('hidden');
                     document.getElementById('success-message').classList.remove('hidden');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    resetTombol();
                 })
-                .withFailureHandler(function (err) {
-                    errBox.textContent = 'Gagal mengirim: ' + (err && err.message ? err.message : err) + '. Silakan coba lagi.';
+                .catch(err => {
+                    errBox.textContent = 'Gagal mengirim: ' + err.message + '. Periksa koneksi lalu coba lagi.';
                     errBox.classList.remove('hidden');
-                    resetTombol();
                 })
-                .simpanRespon(data);
+                .finally(resetTombol);
 
             function resetTombol() {
                 btn.disabled = false;
