@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hasil Polling Kegiatan Bersama</title>
@@ -33,7 +32,7 @@
             <div class="flex flex-wrap gap-2 mt-5">
                 <button onclick="muat()" class="bg-white border border-warm-200 hover:bg-warm-100 text-warm-800 font-medium py-2.5 px-4 rounded-xl transition">🔄 Muat ulang</button>
                 <button onclick="unduhExcel()" id="btn-excel" class="bg-warm-500 hover:bg-warm-600 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-warm-500/30 transition">⬇️ Unduh Excel</button>
-                <a href="<?= appUrl ?>" target="_top" class="bg-white border border-warm-200 hover:bg-warm-100 text-warm-800 font-medium py-2.5 px-4 rounded-xl transition">📝 Isi form polling</a>
+                <a href="index.html" class="bg-white border border-warm-200 hover:bg-warm-100 text-warm-800 font-medium py-2.5 px-4 rounded-xl transition">📝 Isi form polling</a>
             </div>
         </div>
     </div>
@@ -100,6 +99,9 @@
 </div>
 
 <script>
+    // ====== GANTI dengan URL Aplikasi Web Apps Script (berakhiran /exec) ======
+    const SCRIPT_URL = 'TEMPEL_URL_WEB_APP_DI_SINI';
+
     // Label harus sama dengan LABEL di Code.gs
     const OPSI = {
         biaya: ['Sebagian pakai uang pribadi', 'Tidak pakai uang pribadi', 'Full semua pakai uang pribadi'],
@@ -115,8 +117,9 @@
 
     function muat() {
         tampil('loading');
-        google.script.run
-            .withSuccessHandler(function (res) {
+        fetch(SCRIPT_URL + '?action=hasil&t=' + Date.now())
+            .then(r => r.json())
+            .then(function (res) {
                 ROWS = res.rows || [];
                 XLSX_URL = res.xlsxUrl || '';
                 document.getElementById('info-update').textContent =
@@ -126,11 +129,10 @@
                 render(R);
                 tampil('konten');
             })
-            .withFailureHandler(function (err) {
-                document.getElementById('galat').textContent = 'Gagal memuat data: ' + (err.message || err);
+            .catch(function (err) {
+                document.getElementById('galat').textContent = 'Gagal memuat data: ' + err.message + '. Pastikan SCRIPT_URL sudah benar.';
                 tampil('galat');
-            })
-            .getHasil();
+            });
     }
 
     function tampil(id) {
