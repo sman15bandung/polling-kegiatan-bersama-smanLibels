@@ -144,12 +144,35 @@
     }
 
     /* ---------- Pengolahan data ---------- */
+    // Jawaban dari versi form lama disamakan dengan pilihan yang baru
+    const LABEL_LAMA = {
+        'Ya, bersedia patungan': 'Sebagian pakai uang pribadi',
+        'Tidak, full dana kas': 'Tidak pakai uang pribadi'
+    };
+    const KOSONG = 'Tidak terisi';
+
+    // Semua responden selalu terhitung: jawaban kosong masuk "Tidak terisi"
     function hitung(idx, opsi) {
         const c = {};
         opsi.forEach(o => c[o] = 0);
-        ROWS.forEach(r => { if (r[idx]) c[r[idx]] = (c[r[idx]] || 0) + 1; });
+        ROWS.forEach(r => {
+            let v = String(r[idx] || '').trim();
+            // Durasi kosong = jawaban "Mana saja, ayo!" yang terkirim sebelum Code.gs diperbarui
+            if (!v && idx === C.durasi) v = OPSI.durasi[2];
+            v = LABEL_LAMA[v] || v || KOSONG;
+            c[v] = (c[v] || 0) + 1;
+        });
         return c;
     }
+
+    // Pilihan resmi + pilihan lain yang ternyata ada di data (mis. "Tidak terisi")
+    function daftarOpsi(opsi, cnt) {
+        const lain = Object.keys(cnt).filter(k => !opsi.includes(k) && cnt[k] > 0 && k !== KOSONG);
+        return opsi.concat(lain, cnt[KOSONG] ? [KOSONG] : []);
+    }
+
+    // Hanya pilihan resmi (untuk menentukan mayoritas)
+    const resmi = (cnt, opsi) => Object.fromEntries(opsi.map(o => [o, cnt[o] || 0]));
 
     function mayoritas(counts) {
         const e = Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -162,6 +185,30 @@
     // Mayoritas menginap vs PP saja (pilihan "Mana saja ayo" dihitung terpisah)
     function mayoritasDurasi(cnt) {
         return mayoritas({ [OPSI.durasi[0]]: cnt[OPSI.durasi[0]] || 0, [OPSI.durasi[1]]: cnt[OPSI.durasi[1]] || 0 });
+    }
+
+    // ===== Pengelompokan tempat ke daerah =====
+    // Tambahkan kata kunci di sini bila ada tempat lain yang ingin digabung ke daerahnya.
+    const DAERAH = [
+        ['Garut', ['garut', 'gunung guntur', 'guntur', 'papandayan', 'darajat', 'kamojang', 'situ bagendit', 'talaga bodas', 'cipanas garut']],
+        ['Pangandaran', ['pangandaran', 'green canyon', 'batu hiu', 'batukaras', 'batu karas', 'citumang']],
+        ['Ciwidey', ['ciwidey', 'kawah putih', 'situ patenggang', 'patenggang', 'ranca upas', 'rancaupas', 'rancabali']],
+        ['Lembang', ['lembang', 'tangkuban', 'dusun bambu', 'floating market', 'orchid forest', 'cikole']],
+        ['Yogyakarta', ['yogyakarta', 'jogjakarta', 'jogja', 'yogya', 'malioboro']]
+    ];
+
+    // Cari daerah dari kata kunci yang paling awal disebut di jawaban
+    function daerahDari(teks, cadangan) {
+        const t = String(teks).toLowerCase();
+        let hasil = { daerah: cadangan, tempat: cadangan }, posisi = Infinity;
+        DAERAH.forEach(([daerah, kata]) => kata.forEach(k => {
+            const i = t.indexOf(k);
+            if (i !== -1 && (i < posisi || (i === posisi && k.length > hasil.tempat.length))) {
+                posisi = i;
+                hasil = { daerah, tempat: k.replace(/\b\w/g, c => c.toUpperCase()) };
+            }
+        }));
+        return hasil;
     }
 
     function namaDestinasi(t) {
@@ -207,14 +254,20 @@
             kendaraan: hitung(C.kend, OPSI.kendaraan),
             travel: hitung(C.adaTravel, OPSI.travel)
         };
-        // Destinasi
-        const dest = {};
+        res.opsi = {};
+        ['biaya', 'durasi', 'kendaraan', 'travel'].forEach(k => res.opsi[k] = daftarOpsi(OPSI[k], res[k]));
+        // Destinasi (digabung per daerah, mis. Gunung Guntur -> Garut)
+        const dest = {}, rinci = {};
         rows.forEach(r => {
             if (!r[C.dest]) return;
-            const nm = namaDestinasi(r[C.dest]);
+            const asli = namaDestinasi(r[C.dest]);
+            const d = daerahDari(r[C.dest], asli), nm = d.daerah;
             dest[nm] = (dest[nm] || 0) + 1;
+            (rinci[nm] = rinci[nm] || new Set()).add(d.tempat);
         });
-        res.destinasi = Object.entries(dest).sort((a, b) => b[1] - a[1]);
+        // [nama daerah, jumlah, [tempat lain yang digabungkan]]
+        res.destinasi = Object.entries(dest).sort((a, b) => b[1] - a[1])
+            .map(([n, c]) => [n, c, [...rinci[n]].filter(x => x.toLowerCase() !== n.toLowerCase())]);
 
         // Harga
         const mins = [], maxs = [];
@@ -242,23 +295,29 @@
                 poin.push(`Usulan destinasi masih seimbang antara ${sama.join(', ')} (masing-masing ${top[0][1]} suara).`);
             } else {
                 tujuan = top[0][0];
+                const gabung = top[0][2] && top[0][2].length ? `, termasuk ${top[0][2].join(', ')}` : '';
                 const lain = top.slice(1, 3).map(d => `${d[0]} (${d[1]})`).join(' dan ');
-                poin.push(`Destinasi paling banyak diusulkan adalah ${top[0][0]} (${top[0][1]} dari ${r.total} responden)` + (lain ? `, disusul ${lain}.` : '.'));
+                poin.push(`Destinasi paling banyak diusulkan adalah ${top[0][0]} (${top[0][1]} dari ${r.total} responden${gabung})` + (lain ? `, disusul ${lain}.` : '.'));
             }
         }
         if (r.harga) poin.push(`Kisaran biaya yang diusulkan berada di sekitar ${rupiah(r.harga.min)} – ${rupiah(r.harga.max)} per orang (nilai tengah dari ${r.harga.n} jawaban yang mencantumkan harga).`);
 
-        const b = mayoritas(r.biaya), d = mayoritasDurasi(r.durasi), k = mayoritas(r.kendaraan);
+        const b = mayoritas(resmi(r.biaya, OPSI.biaya)), d = mayoritasDurasi(r.durasi), k = mayoritas(resmi(r.kendaraan, OPSI.kendaraan));
         const flex = r.durasi[OPSI.durasi[2]] || 0;
         if (b) poin.push(b.seri ? 'Pendapat soal penggunaan uang pribadi masih seimbang.'
             : `Soal biaya, mayoritas (${b.pct}%) memilih "${b.label}".`);
-        if (d || flex) poin.push(`Soal durasi: ${r.durasi[OPSI.durasi[0]]} orang memilih menginap, ${r.durasi[OPSI.durasi[1]]} orang PP, dan ${flex} orang mana saja ayo. ` +
+        const pd = n => Math.round((n || 0) / r.total * 100) + '%';
+        if (d || flex) poin.push(`Soal durasi: ${r.durasi[OPSI.durasi[0]]} orang (${pd(r.durasi[OPSI.durasi[0]])}) memilih menginap, ${r.durasi[OPSI.durasi[1]]} orang (${pd(r.durasi[OPSI.durasi[1]])}) PP, dan ${flex} orang (${pd(flex)}) mana saja ayo. ` +
             (!d ? 'Semua fleksibel, durasi bisa disesuaikan.' : d.seri ? 'Menginap dan PP sama kuat, yang memilih "mana saja" bisa jadi penentu.' : `Di antara yang menentukan pilihan, lebih banyak yang ingin ${d.label === 'Menginap' ? 'menginap' : 'pulang-pergi (PP)'}.`));
         if (k) poin.push(k.seri ? 'Pilihan transportasi sama kuat antara kendaraan pribadi dan sewa.' : `Untuk transportasi, mayoritas (${k.pct}%) memilih ${k.label.toLowerCase()}.`);
         if (r.daftarTravel.length) {
             const nama = [...new Set(r.daftarTravel.map(t => t.nama.trim()))];
             poin.push(`Ada ${nama.length} agen travel yang direkomendasikan: ${nama.slice(0, 5).join(', ')}${nama.length > 5 ? ', dll' : ''}.`);
         }
+
+        const kosong = [['uang pribadi', r.biaya], ['durasi', r.durasi], ['transportasi', r.kendaraan]]
+            .filter(([, c]) => c[KOSONG]).map(([n, c]) => `${n} (${c[KOSONG]})`);
+        if (kosong.length) poin.push(`Catatan: ada jawaban yang tidak terisi pada pertanyaan ${kosong.join(', ')}, tetap ditampilkan sebagai "${KOSONG}".`);
 
         // Rekomendasi akhir
         const bagian = [];
@@ -288,10 +347,10 @@
         const topDest = r.destinasi.slice(0, 8);
         document.getElementById('wrap-destinasi').style.height = Math.max(160, topDest.length * 38 + 40) + 'px';
         grafik('c-destinasi', 'bar', topDest.map(x => x[0]), topDest.map(x => x[1]), true);
-        grafik('c-biaya', 'doughnut', OPSI.biaya, OPSI.biaya.map(o => r.biaya[o]));
-        grafik('c-durasi', 'doughnut', OPSI.durasi, OPSI.durasi.map(o => r.durasi[o]));
-        grafik('c-kendaraan', 'doughnut', OPSI.kendaraan, OPSI.kendaraan.map(o => r.kendaraan[o]));
-        grafik('c-travel', 'doughnut', OPSI.travel, OPSI.travel.map(o => r.travel[o]));
+        grafik('c-biaya', 'doughnut', r.opsi.biaya, r.opsi.biaya.map(o => r.biaya[o] || 0));
+        grafik('c-durasi', 'doughnut', r.opsi.durasi, r.opsi.durasi.map(o => r.durasi[o] || 0));
+        grafik('c-kendaraan', 'doughnut', r.opsi.kendaraan, r.opsi.kendaraan.map(o => r.kendaraan[o] || 0));
+        grafik('c-travel', 'doughnut', r.opsi.travel, r.opsi.travel.map(o => r.travel[o] || 0));
 
         document.getElementById('t-travel').innerHTML = r.daftarTravel.length
             ? r.daftarTravel.map(t => `<tr class="border-b border-warm-50"><td class="py-2 pr-3 font-medium">${esc(t.nama)}</td><td class="py-2 pr-3">${esc(t.tujuan)}</td><td class="py-2 pr-3">${esc(t.harga)}</td><td class="py-2">${esc(t.oleh)}</td></tr>`).join('')
@@ -302,6 +361,32 @@
             <td class="py-2 pr-3">${esc(x[C.dest])}</td><td class="py-2 pr-3">${esc(x[C.biaya])}</td><td class="py-2 pr-3">${esc(x[C.durasi])}</td>
             <td class="py-2 pr-3">${esc(x[C.kend])}</td><td class="py-2">${esc(x[C.namaTravel] || '-')}</td></tr>`).join('');
     }
+
+    // Plugin: tulis persentase di dalam potongan diagram lingkaran
+    const labelPersen = {
+        id: 'labelPersen',
+        afterDatasetsDraw(chart, args, opsi) {
+            if (chart.config.type !== 'doughnut') return;
+            const ds = chart.data.datasets[0], meta = chart.getDatasetMeta(0);
+            const total = ds.data.reduce((a, b) => a + b, 0);
+            if (!total || chart.$kosong) return;
+            const ctx = chart.ctx, a0 = meta.data[0];
+            const tebal = a0 ? a0.outerRadius - a0.innerRadius : 30;
+            const ukuran = Math.min((opsi && opsi.maks) || 15, Math.max(9, Math.round(tebal * 0.4))); // menyesuaikan tebal cincin
+            ctx.save();
+            ctx.font = `bold ${ukuran}px Inter, Helvetica, Arial, sans-serif`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            meta.data.forEach((arc, i) => {
+                const pct = ds.data[i] / total * 100;
+                if (pct < 5) return; // potongan terlalu kecil, cukup di keterangan
+                const pos = arc.tooltipPosition();
+                const terang = ['#e8c0a6', '#f2dac9', '#db9d7a'].includes(String(ds.backgroundColor[i]).toLowerCase());
+                ctx.fillStyle = terang ? '#6a362a' : '#ffffff';
+                ctx.fillText(Math.round(pct) + '%', pos.x, pos.y);
+            });
+            ctx.restore();
+        }
+    };
 
     function grafik(id, type, labels, data, horizontal) {
         if (charts[id]) charts[id].destroy();
@@ -314,11 +399,23 @@
                 indexAxis: horizontal ? 'y' : 'x',
                 cutout: type === 'doughnut' ? '58%' : undefined,
                 plugins: {
-                    legend: { display: type !== 'bar', position: 'bottom', labels: { boxWidth: 12, font: { family: 'Inter' } } },
+                    legend: {
+                        display: type !== 'bar', position: 'bottom',
+                        labels: {
+                            boxWidth: 12, font: { family: 'Inter' },
+                            // keterangan: "Menginap: 3 (60%)"
+                            generateLabels: chart => Chart.overrides.doughnut.plugins.legend.labels.generateLabels(chart).map(l => {
+                                const v = data[l.index] || 0;
+                                l.text = `${l.text}: ${v} (${total ? Math.round(v / total * 100) : 0}%)`;
+                                return l;
+                            })
+                        }
+                    },
                     tooltip: { callbacks: { label: c => ` ${c.raw} orang (${total ? Math.round(c.raw / total * 100) : 0}%)` } }
                 },
                 scales: type === 'bar' ? { x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#f9eee7' } }, y: { grid: { display: false } } } : {}
-            }
+            },
+            plugins: [labelPersen]
         });
     }
 
@@ -342,17 +439,17 @@
 
             // 2. Rekap
             const rek = [['REKAP JAWABAN'], []];
-            [['Pakai uang pribadi?', R.biaya, OPSI.biaya], ['Menginap / PP', R.durasi, OPSI.durasi],
-             ['Transportasi', R.kendaraan, OPSI.kendaraan], ['Punya rekomendasi travel?', R.travel, OPSI.travel]]
+            [['Pakai uang pribadi?', R.biaya, R.opsi.biaya], ['Menginap / PP', R.durasi, R.opsi.durasi],
+             ['Transportasi', R.kendaraan, R.opsi.kendaraan], ['Punya rekomendasi travel?', R.travel, R.opsi.travel]]
                 .forEach(([judul, cnt, opsi]) => {
-                    const t = opsi.reduce((s, o) => s + cnt[o], 0);
+                    const t = opsi.reduce((s, o) => s + (cnt[o] || 0), 0);
                     rek.push([judul, 'Jumlah', 'Persen']);
-                    opsi.forEach(o => rek.push([o, cnt[o], pct(cnt[o], t)]));
+                    opsi.forEach(o => rek.push([o, cnt[o] || 0, pct(cnt[o] || 0, t)]));
                     rek.push([]);
                 });
-            rek.push(['Destinasi diusulkan', 'Jumlah', 'Persen']);
-            R.destinasi.forEach(([n, c]) => rek.push([n, c, pct(c, R.total)]));
-            const ws1 = XLSX.utils.aoa_to_sheet(rek); ws1['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 10 }];
+            rek.push(['Destinasi diusulkan (per daerah)', 'Jumlah', 'Persen', 'Termasuk']);
+            R.destinasi.forEach(([n, c, g]) => rek.push([n, c, pct(c, R.total), (g || []).join(', ')]));
+            const ws1 = XLSX.utils.aoa_to_sheet(rek); ws1['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 10 }, { wch: 40 }];
             XLSX.utils.book_append_sheet(wb, ws1, 'Rekap');
 
             // 3. Agen travel
@@ -453,10 +550,10 @@
             y += gambar('c-destinasi', 'Destinasi yang paling banyak diusulkan', M, CW, 80);
             // Diagram lingkaran: digambar ulang khusus PDF + keterangan yang mudah dibaca
             const donat = [
-                ['Pakai uang pribadi?', OPSI.biaya, R.biaya],
-                ['Menginap atau PP?', OPSI.durasi, R.durasi],
-                ['Transportasi', OPSI.kendaraan, R.kendaraan],
-                ['Punya rekomendasi agen travel?', OPSI.travel, R.travel]
+                ['Pakai uang pribadi?', R.opsi.biaya, R.biaya],
+                ['Menginap atau PP?', R.opsi.durasi, R.durasi],
+                ['Transportasi', R.opsi.kendaraan, R.kendaraan],
+                ['Punya rekomendasi agen travel?', R.opsi.travel, R.travel]
             ];
             const half = (CW - 8) / 2, D = 32;
             for (let i = 0; i < donat.length; i += 2) {
@@ -485,8 +582,8 @@
             y += 2;
             judul('Rekap Jawaban');
             const bodyRekap = [];
-            [['Pakai uang pribadi?', R.biaya, OPSI.biaya], ['Menginap / PP', R.durasi, OPSI.durasi],
-             ['Transportasi', R.kendaraan, OPSI.kendaraan], ['Rekomendasi travel?', R.travel, OPSI.travel]]
+            [['Pakai uang pribadi?', R.biaya, R.opsi.biaya], ['Menginap / PP', R.durasi, R.opsi.durasi],
+             ['Transportasi', R.kendaraan, R.opsi.kendaraan], ['Rekomendasi travel?', R.travel, R.opsi.travel]]
                 .forEach(([q, cnt, opsi]) => {
                     const t = opsi.reduce((s, o) => s + (cnt[o] || 0), 0);
                     opsi.forEach((o, i) => bodyRekap.push([i === 0 ? q : '', o, cnt[o] || 0, (t ? Math.round((cnt[o] || 0) / t * 100) : 0) + '%']));
@@ -495,9 +592,9 @@
                 { pageBreak: 'avoid', columnStyles: { 0: { fontStyle: 'bold', cellWidth: 45 }, 2: { halign: 'center', cellWidth: 22 }, 3: { halign: 'center', cellWidth: 22 } } });
 
             judul('Destinasi yang Diusulkan');
-            tabel(['No', 'Destinasi', 'Jumlah Usulan', 'Persen'],
-                R.destinasi.map(([n, c], i) => [i + 1, n, c, Math.round(c / R.total * 100) + '%']),
-                { columnStyles: { 0: { halign: 'center', cellWidth: 12 }, 2: { halign: 'center', cellWidth: 30 }, 3: { halign: 'center', cellWidth: 22 } } });
+            tabel(['No', 'Destinasi (per daerah)', 'Termasuk', 'Jumlah Usulan', 'Persen'],
+                R.destinasi.map(([n, c, g], i) => [i + 1, n, (g || []).join(', ') || '-', c, Math.round(c / R.total * 100) + '%']),
+                { columnStyles: { 0: { halign: 'center', cellWidth: 12 }, 1: { fontStyle: 'bold' }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 20 } } });
 
             if (R.daftarTravel.length) {
                 judul('Agen Travel yang Direkomendasikan');
@@ -536,8 +633,10 @@
         const ch = new Chart(cv, {
             type: 'doughnut',
             data: { datasets: [{ data: nilai.some(v => v) ? nilai : [1], backgroundColor: nilai.some(v => v) ? WARNA : ['#eeeeee'], borderColor: '#fff', borderWidth: 3 }] },
-            options: { responsive: false, animation: false, cutout: '55%', devicePixelRatio: 2, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+            options: { responsive: false, animation: false, cutout: '55%', devicePixelRatio: 2, plugins: { legend: { display: false }, tooltip: { enabled: false }, labelPersen: { maks: 30 } } },
+            plugins: [labelPersen]
         });
+        if (!nilai.some(v => v)) ch.$kosong = true;
         const url = ch.toBase64Image('image/png', 1);
         ch.destroy(); wadah.remove();
         return url;
